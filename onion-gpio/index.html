@@ -1,0 +1,665 @@
+<link rel="import" href="../../lib/polymer/polymer.html">
+<link rel="import" href="../../lib/iron-flex-layout/classes/iron-flex-layout.html">
+<link rel="import" href="../../elements/onion-app/onion-app.html">
+<link rel="import" href="../../lib/iron-icons/iron-icons.html">
+<link rel="import" href="../../lib/iron-icons/hardware-icons.html">
+<link rel="import" href="../../lib/Onion-Console/bootstrap-dropdown/bootstrap-dropdown.html">
+<link rel="import" href="../../elements/onion-device-list/onion-device-list.html">
+<link rel="import" href="../../elements/onion-help/app-tour.html">
+<link rel="import" href="./gpio-tour.html">
+<dom-module id="onion-gpio">
+	<style>
+	    :host {
+			display: block;
+			height: 100%;
+			width: 100%;
+			--bootstrap-dropdown-toggle-padding: 0 10px;
+			--bootstrap-dropdown-toggle-hover-bg: rgba(255, 255, 255, 0.5);
+		}
+		onion-app-body {
+			@apply(--layout-vertical);
+/* 			display:  -webkit-flex; */
+		}
+
+		onion-app-body > div {
+			height: 100%;
+			width: 100%;
+			overflow: scroll;
+			padding: 15px;
+		}
+
+		#pin-map {
+			height: 600px;
+			width: auto;
+		}
+
+		#pin-map-dock {
+			height: auto;
+			width: 600px;
+		}
+
+		button.pin {
+			border-radius: 6px;
+			display: block;
+			border: 1px solid #f2f2f2;
+			font-size: 12px;
+			padding: 3px 5px;
+			background-color: #E8E8E8;
+			color: #fff;
+
+		}
+
+		onion-app-toolbar button {
+			padding: 0 10px;
+			background-color: transparent;
+		}
+			onion-app-toolbar button:hover {
+				background-color: rgba(255, 255, 255, 0.5);
+			}
+		onion-app-toolbar button iron-icon,
+		onion-app-toolbar bootstrap-dropdown-toggle iron-icon {
+			margin-right: 5px;
+		}
+
+		button.pin.gpio {
+			background-color: gray;
+		}
+
+		button.pin.gpio.on {
+			background-color: #2ecc71;
+		}
+
+		button.pin.gpio.off {
+			background-color: red;
+		}
+
+		#exp-dock-bg {
+			position: relative;
+			height: 374px;
+			width: 600px;
+			background-image: url('./img/exp_dock.png');
+			background-size: contain;
+			background-repeat: no-repeat;
+		}
+
+		#left-pins {
+			margin-right: 10px;
+		}
+
+		#right-pins {
+			margin-left: 10px;
+		}
+
+		#top-pins {
+			position: absolute;
+			width: 350px;
+			left: 17px;
+			bottom: 100px;
+		}
+
+		#bottom-pins {
+			position: absolute;
+			width: 350px;
+			left: 17px;
+			bottom: 55px
+    	}
+			.pin.vertical {
+				padding: 0;
+			    width: 16.75px;
+			    height: 40px;
+			    display: inline;
+			    white-space: nowrap;
+			}
+			.pin.vertical > div {
+				width: 40px;
+				margin-left: -12.5px;
+				-webkit-transform: rotate(270deg);
+			    -moz-transform: rotate(270deg);
+			    -o-transform: rotate(270deg);
+			    -ms-transform: rotate(270deg);
+			    transform: rotate(270deg);
+			}
+
+
+		#gpio-control {
+			height: 415px;
+			width: 300px;
+			background: #fff;
+			border-radius: 5px;
+			margin-left: 25px;
+			padding: 25px;
+		}
+			#gpio-pin-number {
+				text-align: center;
+				margin-bottom: 25px;
+			}
+
+		#no-pin {
+			color: #ccc;
+			height: 100%;
+			width: 100%;
+		}
+		li.layoutList:hover{
+			color:gray;
+			
+		}
+		.layoutList{
+			background-color:rgb(192, 57, 43);
+			padding-left:15px;
+		}
+
+		.device-communication {
+			color: #8c8c8c;
+			height: 35px;
+			width: 35px;
+		}
+	</style>
+
+	<template>
+		<onion-app app-name="GPIO Tool" toolbar-background="#c0392b" background="#f2f2f2">
+
+			<onion-app-toolbar page-id="home">
+				<div class="layout horizontal">
+					<div class="flex"></div>  <!-- Place Holder -->   
+	<!-- 					<bootstrap-dropdown>
+						<bootstrap-dropdown-toggle theme="onion">
+							<iron-icon class="toolbar-icon" icon="hardware:developer-board"></iron-icon><span>Board Layout</span>
+						</bootstrap-dropdown-toggle>
+						<bootstrap-dropdown-menu right>
+							<bootstrap-dropdown-item on-tap="_onLayoutChange" data-args="omega">Omega</bootstrap-dropdown-item>
+							<bootstrap-dropdown-item on-tap="_onLayoutChange" data-args="exp_dock">Expansion Dock</bootstrap-dropdown-item>
+						</bootstrap-dropdown-menu>
+					</bootstrap-dropdown> -->
+					<bootstrap-dropdown class="layoutList" style="background-color:rgb(192, 57, 43);" for="layoutDropdown">
+							<li class="layoutList" on-tap="_onLayoutChange" data-args="omega">Omega</li>
+							<li class="layoutList" on-tap="_onLayoutChange" data-args="exp_dock">Expansion Dock</li>
+					</bootstrap-dropdown>
+					<button tour-id="change-layout" id="layoutDropdown" class="layoutList">
+						<iron-icon class="toolbar-icon" icon="hardware:developer-board"></iron-icon><span>Board Layout</span>
+						<span><iron-icon icon="icons:arrow-drop-down"></iron-icon></span>
+					</button>
+				</div>
+			</onion-app-toolbar>
+
+			<onion-app-body page-id="home">
+				<!-- App Tour -->
+				<gpio-tour tour-clicked={{tourStarted}}></gpio-tour>
+
+				<div class="flex layout vertical center-center">
+					<div class="layout horizontal center-center">
+						<!-- Device List -->
+						<onion-device-list tour-id="select-device" drop-down="true"  online-filter="true" online-only="true" share-filter="true" can-manage="true" selected-id={{currentDev}} tour-id="gpio-select-device"></onion-device-list>	
+
+						<!-- Device Communication Icon -->
+						<div class="device-communication">
+							<template is="dom-if" if="{{bDeviceCommunication}}">
+								<onion-loading loading="true" icon="icons:settings"></onion-loading>
+							</template>
+						</div>
+					</div>
+
+					<!-- Omega Layout -->
+					<div class="horizontal center-justified layout center">
+					<template is="dom-if" if="{{_checkValue(layout, 'omega')}}">
+						<div class="vertical end-justified layout" id="left-pins">
+							<template id="pinListLeft" is="dom-repeat" items="{{pins}}" index-as="pinIndex">
+								<template is="dom-if" if="{{item.left}}">
+									<button tour-id="gpio-select" class$="{{_calculatePinClass(item)}}" on-tap="_onPin">{{item.label}}</button>
+								</template>
+							</template>
+						</div>
+
+						<img id="pin-map" src="./img/omega.png" />
+
+						<div class="vertical end-justified layout" id="right-pins">
+							<template is="dom-repeat" items="{{pins}}">
+								<template is="dom-if" if="{{!item.left}}">
+									<button tour-id="gpio-select" class$="{{_calculatePinClass(item)}}" on-tap="_onPin">{{item.label}}</button>
+								</template>
+							</template>
+						</div>
+					</template>
+
+					<!-- Expansion Dock Layout -->
+					<template is="dom-if" if="{{_checkValue(layout, 'exp_dock')}}">
+						<div id="exp-dock-bg">
+							<div id="top-pins">
+								<template id="pinListLeft" is="dom-repeat" items="{{pins}}" index-as="pinIndex">
+									<template is="dom-if" if="{{!item.left}}">
+										<button tour-id="gpio-select"class$="{{_calculatePinClass(item,layout)}}" on-tap="_onPin"><div>{{item.label}}</div></button>
+									</template>
+								</template>
+							</div>
+							<div id="bottom-pins" tour-id="gpio-select">
+								<template is="dom-repeat" items="{{pins}}">
+									<template is="dom-if" if="{{item.left}}">
+										<button class$="{{_calculatePinClass(item,layout)}}" on-tap="_onPin"><div>{{item.label}}</div></button>
+									</template>
+								</template>
+							</div>
+						</div>
+					</template>
+
+					<!-- GPIO Control -->
+					<div id="gpio-control">
+						<template is="dom-if" if="{{!_isGpio(currentPin)}}">
+							<div id="no-pin" class="horizontal center-justified layout center">Please select a GPIO Pin</div>
+						</template>
+						<template is="dom-if" if="{{_isGpio(currentPin)}}">
+							<div>
+								<h5 id="gpio-pin-number">GPIO <span>{{currentPin.gpio}}</span></h5>
+
+								<div class="form-group row"  tour-id="select-direction" >
+									<label for="direction" class="col-lg-4 col-md-4 col-sm-4 col-xs-4 form-control-label">Direction</label>
+									<div class="col-lg-8 col-md-8 col-sm-8 col-xs-8">
+										<select id="direction" class="c-select" on-change="_pinDirectionChanged" value="{{currentPin.direction::input}}">
+											<option value="input">Input</option>
+											<option value="output">Output</option>
+										</select>
+									</div>
+								</div>
+								<div class="form-group row"  tour-id="select-value" >
+									<label for="value" class="col-lg-4 col-md-4 col-sm-4 col-xs-4 form-control-label">Value</label>
+									<div class="col-lg-8 col-md-8 col-sm-8 col-xs-8">
+										<select id="value" class="c-select" on-change="_pinValueChanged" value="{{currentPin.value::input}}" disabled="{{_isInput(currentPin)}}">
+											<option value="0">0</option>
+											<option value="1">1</option>
+										</select>
+									</div>
+								</div>
+								<div class="form-group row">
+									<div class="col-lg-8 col-md-8 col-sm-8 col-xs-8 col-lg-offset-4 col-md-offset-4 col-sm-offset-4 col-xs-offset-4">
+										<button tour-id="sync" class="btn btn-success" on-tap="_syncOne">Sync</button>
+									</div>
+								</div>
+							</div>
+						</template>
+					</div>
+					</div>
+				</div>
+			</onion-app-body>
+		</onion-app>
+	</template>
+
+	<script>
+		'use strict';
+
+		(function () {
+			var self = null;
+
+			var created = function () {
+				self = this;
+			};
+
+			var ready = function() {
+				this.title = 'Tool';
+				console.log(self.layout);
+				onionConsole.getService('onion-device-hardware-provider', (function (err, api) {
+					if (err) {
+						console.log('Cannot get onion-device-hardware-provider!!');
+					}
+					this.expApi = api;
+				}).bind(this));
+				this._tourPin();
+			};
+
+			var _sendNotification = function (msg) {
+				onionConsole.sendNotification({
+					title: 'GPIO Control',
+					message: msg
+				});
+			};
+
+			// populate the array with info for all GPIO pins
+            var _syncAll = function () {
+            	// Changed
+				// get the ubus service
+				// TODO: need a new service to pull all pin data
+				for (var i=0; i< this.pins.length; i++) {
+					var pin = this.pins[i];
+					this.bDeviceCommunication 	= true;	// enable device communication icon
+
+					this.expApi.gpioGetPinStatus(this.currentDev, pin.gpio, (
+					function (err, response) {
+						if (err) {
+							_sendNotification('[Error]: Unable to communicate with GPIO');
+						} else if (response.error) {
+							_sendNotification('[Error]: Unable to communicate with selected device');
+						} else {
+							// Update pins
+							pin.direction = response.direction;
+							pin.value = response.value;
+							// data[1] contains the following:
+							// {pin: int, value: int, direction: "input|output", input: true|false, activelow: false|true}
+							this._refresh();
+						}
+						this.bDeviceCommunication = false;	// disable the loading icon
+					}).bind(this));
+				};
+			};
+
+			var _syncOne = function () {
+				// Changed
+				var pin = this.currentPin;
+				this.bDeviceCommunication 	= true;	// enable device communication icon
+
+				this.expApi.gpioGetPinStatus(this.currentDev, pin.gpio, (
+				function (err, response) {
+					if (err) {
+						_sendNotification('[Error]: Unable to communicate with GPIO');
+					} else if (response.error) {
+						_sendNotification('[Error]: Unable to communicate with selected device');
+					} else {
+						// Update pins
+						pin.direction = response.direction;
+						pin.value = response.value;
+						// data[1] contains the following:
+						// {pin: int, value: int, direction: "input|output", input: true|false, activelow: false|true}
+						this._refresh();
+					}
+					this.bDeviceCommunication = false; //disable the loading icon
+				}).bind(this));
+			};
+
+			var _calculatePinClass = function (pin, layout) {
+				var result = 'pin';
+				result = result + (pin.gpio >= 0 ? ' gpio' : '');
+				if (pin.direction !== '?'){ //pin initialized
+					result = result + (pin.value > 0 ? ' off' : ' on');
+				}
+				
+				if (layout === 'exp_dock'){
+					result = result + ' vertical';
+				}
+
+
+				return result;
+			};
+
+			var _isGpio = function(pin){
+				return (pin.gpio >= 0)
+			}
+
+			var _isInput = function(pin){
+				return (pin.direction === "input")
+			}
+
+			var _onPin = function (e) {
+				this.currentPin = e.model.item;
+				if (this.currentPin.gpio >= 0){
+					this._syncOne();
+				}
+			};
+
+			var _calculateDirection = function (currentPin, updateDirection) {
+				return (this.gpios[currentPin].direction === 'input');
+			};
+
+			var _refresh = function(){
+				// this is an workaround to force update the screen
+				var buffer = [];
+				for (var i = 0; i < this.pins.length; i++) {
+					var p = {};
+					for (var key in this.pins[i]){
+						p[key] = this.pins[i][key];
+					}
+					buffer.push(p);
+				};
+
+				this.pins = buffer;
+				this.currentPin = this._getPin(this.currentPin.gpio);
+			};
+
+			var _getPinStatus = function (pin){
+				// Changed
+				this.expApi.gpioGetPinStatus (this.currentDev, this.currentPin, (
+				function (err, response) {
+					if (err) {
+						_sendNotification('[Error]: Unable to communicate with GPIO');
+					} else if (response.error) {
+						_sendNotification('[Error]: Unable to communicate with selected device');
+					} else {
+						if (response.length === 2 && response[0] === 0) {
+							pin.value = response[1].value;
+							this._refresh();
+						} else {
+							console.log('status error');
+						}						
+					}
+				}).bind(this));
+			};
+
+			var _pinValueChanged = function () {
+				// Changed
+				this.expApi.gpioSetPin(this.currentDev, this.currentPin.gpio, this.currentPin.value, (
+				function (err, response) {
+					if (err) {
+						_sendNotification('[Error]: Unable to communicate with GPIO');
+					} else if (response.error) {
+						_sendNotification('[Error]: Unable to communicate with selected device');
+					} else {
+						if (response.length === 2 && response[0] === 0) {
+							// this._getPinStatus(this.currentPin);
+							this._refresh();
+						}
+					}
+				}).bind(this));
+			};
+
+			var _pinDirectionChanged = function () {
+				// Changed
+				this.expApi.gpioSetPinDirection(this.currentDev, this.currentPin.gpio, this.currentPin.direction, (
+				function (err, response) {
+					if (err) {
+						_sendNotification('[Error]: Unable to communicate with GPIO');
+					} else if (response.error) {
+						_sendNotification('[Error]: Unable to communicate with selected device');
+					} else {
+						if (response.length === 2 && response[0] === 0) {
+							//console.log("set-direction", data);
+							this._refresh();
+						}
+					}
+				}).bind(this));
+			};
+
+			var _getPin = function(gpio){
+				for (var i = 0; i < this.pins.length; i++) {
+					if (this.pins[i].gpio === gpio){
+						return this.pins[i];
+					}
+				};
+			};
+
+			var _checkValue = function(layout, compare){
+				console.log('_checkValue:' +layout + compare)
+				return (layout === compare);
+			};
+
+			var _onLayoutChange = function (e) {
+				this.layout = e.target.dataset.args;
+				console.log(e);
+				console.log(this.layout);
+				if (this.layout === 'omega'){
+					this.pins = [ // left:true = left side, gpio:-1=not gpio
+						// left side pins
+						{left: true, label: 'GND', gpio: -1, direction: null, value: null},
+						{left: true, label: '2.8V', gpio: -1, direction: null, value: null},
+						{left: true, label: '26', gpio: 26, direction: '?', value: 0},
+						{left: true, label: '23', gpio: 23, direction: '?', value: 0},
+						{left: true, label: '17', gpio: 17, direction: '?', value: 0},
+						{left: true, label: '16', gpio: 16, direction: '?', value: 0},
+						{left: true, label: '15', gpio: 15, direction: '?', value: 0},
+						{left: true, label: '14', gpio: 14, direction: '?', value: 0},
+						{left: true, label: '13', gpio: 13, direction: '?', value: 0},
+						{left: true, label: '12', gpio: 12, direction: '?', value: 0},
+						{left: true, label: '8', gpio: 8, direction: '?', value: 0},
+						{left: true, label: '7', gpio: 7, direction: '?', value: 0},
+						{left: true, label: '6', gpio: 6, direction: '?', value: 0},
+						{left: true, label: '1', gpio: 1, direction: '?', value: 0},
+						{left: true, label: '0', gpio: 0, direction: '?', value: 0},
+						{left: true, label: 'RST', gpio: -1, direction: null, value: null},
+						// right side pins
+						{left: false, label: 'GND', gpio: -1, direction: null, value: null},
+						{left: false, label: '3.3V', gpio: -1, direction: null, value: null},
+						{left: false, label: 'USB+', gpio: -1, direction: null, value: null},
+						{left: false, label: 'USB-', gpio: -1, direction: null, value: null},
+						{left: false, label: 'TX', gpio: -1, direction: null, value: null},
+						{left: false, label: 'RX', gpio: -1, direction: null, value: null},
+						{left: false, label: 'FW RST', gpio: -1, direction: null, value: null},
+						{left: false, label: '2.0V', gpio: -1, direction: null, value: null},
+						{left: false, label: 'TX-', gpio: -1, direction: null, value: null},
+						{left: false, label: 'TX+', gpio: -1, direction: null, value: null},
+						{left: false, label: 'RX-', gpio: -1, direction: null, value: null},
+						{left: false, label: 'RX+', gpio: -1, direction: null, value: null},
+						{left: false, label: '18', gpio: 18, direction: '?', value: 0},
+						{left: false, label: '19', gpio: 19, direction: '?', value: 0},
+						{left: false, label: 'SCL', gpio: -1, direction: null, value: null},
+						{left: false, label: 'SDA', gpio: -1, direction: null, value: null}
+					];
+
+				} else if (this.layout === 'exp_dock') {
+					this.pins = [ // left:true = left side, gpio:-1=not gpio
+						// left side pins
+						{left: true, label: 'GND', gpio: -1, direction: null, value: null},
+						{left: true, label: '3.3V', gpio: -1, direction: null, value: null},
+						{left: true, label: '2.0V', gpio: -1, direction: null, value: null},
+						{left: true, label: '26', gpio: 26, direction: '?', value: 0},
+						{left: true, label: '23', gpio: 23, direction: '?', value: 0},
+						{left: true, label: '14', gpio: 14, direction: '?', value: 0},
+						{left: true, label: '13', gpio: 13, direction: '?', value: 0},
+						{left: true, label: '12', gpio: 12, direction: '?', value: 0},
+						{left: true, label: '8', gpio: 8, direction: '?', value: 0},
+						{left: true, label: '7', gpio: 7, direction: '?', value: 0},
+						{left: true, label: '6', gpio: 6, direction: '?', value: 0},
+						{left: true, label: '1', gpio: 1, direction: '?', value: 0},
+						{left: true, label: '0', gpio: 0, direction: '?', value: 0},
+						{left: true, label: 'RST', gpio: -1, direction: null, value: null},
+						{left: true, label: 'GND', gpio: -1, direction: null, value: null},
+						// right side pins
+						
+						{left: false, label: '5V', gpio: -1, direction: null, value: null},
+						{left: false, label: '2.5V', gpio: -1, direction: null, value: null},
+						{left: false, label: 'USB+', gpio: -1, direction: null, value: null},
+						{left: false, label: 'USB-', gpio: -1, direction: null, value: null},
+						{left: false, label: 'TX-', gpio: -1, direction: null, value: null},
+						{left: false, label: 'TX+', gpio: -1, direction: null, value: null},
+						{left: false, label: 'RX-', gpio: -1, direction: null, value: null},
+						{left: false, label: 'RX+', gpio: -1, direction: null, value: null},
+						{left: false, label: '18', gpio: 18, direction: '?', value: 0},
+						{left: false, label: '19', gpio: 19, direction: '?', value: 0},
+						{left: false, label: 'SCL', gpio: -1, direction: null, value: null},
+						{left: false, label: 'SDA', gpio: -1, direction: null, value: null},
+						{left: false, label: 'GND', gpio: -1, direction: null, value: null},
+						{left: false, label: '5V', gpio: -1, direction: null, value: null},
+						{left: false, label: '3.3V', gpio: -1, direction: null, value: null}
+					];
+				}
+			};
+			
+			var _tourPin = function(){
+				console.log('currpin ',this.currentPin);
+				console.log('pins', this.pins);
+				
+				if (this.pins){
+				this.currentPin = this.pins[12];
+				}
+				};
+
+			Polymer({
+				is: 'onion-gpio',
+				created: created,
+				ready: ready,
+				_sendNotification: _sendNotification,
+				_tourPin: _tourPin,
+				behaviors: [Onion.AppBehavior],
+				_calculatePinClass: _calculatePinClass,
+				_onPin: _onPin,
+				_calculateDirection: _calculateDirection,
+				_syncAll: _syncAll,
+				_isGpio: _isGpio,
+				_isInput: _isInput,
+				_refresh: _refresh,
+				_pinValueChanged: _pinValueChanged,
+				_pinDirectionChanged: _pinDirectionChanged,
+				_getPin: _getPin,
+				_syncOne: _syncOne,
+				_onLayoutChange: _onLayoutChange,
+				_checkValue: _checkValue,
+				properties: {
+					currentDev:{
+						type: String,
+						value: 0,
+						notify: true,
+					},
+					tourStarted:{
+						type:Boolean,
+						value: false,
+						observer:"_tourPin",
+						notify:true
+					},
+					layout: {
+						type: String,
+						value: 'exp_dock',
+						notify: true
+					},
+					directionBuffer: {
+						type: String,
+						notify: true
+					},
+					updateDirection: {
+						type: Boolean,
+						notify: true
+					},
+					valueBuffer: {
+						type: Number,
+						notify: true
+					},
+					currentPin: {
+						type: Object,
+						notify: true,
+					},
+					pins: {
+						type: Array,
+						value: [ // left:true = left side, gpio:-1=not gpio
+							// left side pins
+							{left: true, label: 'GND', gpio: -1, direction: null, value: null},
+							{left: true, label: '3.3V', gpio: -1, direction: null, value: null},
+							{left: true, label: '2.0V', gpio: -1, direction: null, value: null},
+							{left: true, label: '26', gpio: 26, direction: '?', value: 0},
+							{left: true, label: '23', gpio: 23, direction: '?', value: 0},
+							{left: true, label: '14', gpio: 14, direction: '?', value: 0},
+							{left: true, label: '13', gpio: 13, direction: '?', value: 0},
+							{left: true, label: '12', gpio: 12, direction: '?', value: 0},
+							{left: true, label: '8', gpio: 8, direction: '?', value: 0},
+							{left: true, label: '7', gpio: 7, direction: '?', value: 0},
+							{left: true, label: '6', gpio: 6, direction: '?', value: 0},
+							{left: true, label: '1', gpio: 1, direction: '?', value: 0},
+							{left: true, label: '0', gpio: 0, direction: '?', value: 0},
+							{left: true, label: 'RST', gpio: -1, direction: null, value: null},
+							{left: true, label: 'GND', gpio: -1, direction: null, value: null},
+							// right side pins
+							
+							{left: false, label: '5V', gpio: -1, direction: null, value: null},
+							{left: false, label: '2.5V', gpio: -1, direction: null, value: null},
+							{left: false, label: 'USB+', gpio: -1, direction: null, value: null},
+							{left: false, label: 'USB-', gpio: -1, direction: null, value: null},
+							{left: false, label: 'TX-', gpio: -1, direction: null, value: null},
+							{left: false, label: 'TX+', gpio: -1, direction: null, value: null},
+							{left: false, label: 'RX-', gpio: -1, direction: null, value: null},
+							{left: false, label: 'RX+', gpio: -1, direction: null, value: null},
+							{left: false, label: '18', gpio: 18, direction: '?', value: 0},
+							{left: false, label: '19', gpio: 19, direction: '?', value: 0},
+							{left: false, label: 'SCL', gpio: -1, direction: null, value: null},
+							{left: false, label: 'SDA', gpio: -1, direction: null, value: null},
+							{left: false, label: 'GND', gpio: -1, direction: null, value: null},
+							{left: false, label: '5V', gpio: -1, direction: null, value: null},
+							{left: false, label: '3.3V', gpio: -1, direction: null, value: null}
+						],
+						notify: true,
+					},
+				}
+			});
+        })();
+	</script>
+</dom-module>
